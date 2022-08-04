@@ -33,22 +33,20 @@ contract Roulette {
         freeBalance += msg.value;
     }
 
+    function withdraw(uint amount) external {
+        require(msg.sender == owner, "Caller is not the owner.");
+        require(amount <= freeBalance, "Not enough free balance to support the requested withdrawal.");
+        freeBalance -= amount;
+        totalBalance -= amount;
+        payable(msg.sender).transfer(amount);
+    }
+
     function betOnEven(uint futureBlockNumber) external payable {
         _betOnParity(futureBlockNumber, BetType.Even);
     }
 
     function betOnOdd(uint futureBlockNumber) external payable {
         _betOnParity(futureBlockNumber, BetType.Odd);
-    }
-
-    function _betOnParity(uint futureBlockNumber, BetType betType) private {
-        require(msg.value > 0, "Must bet a positive amount");
-        require(msg.value < freeBalance, "Bank has insufficient funds to support this bet.");
-        require(futureBlockNumber > block.number, "Bet must be placed in the future.");
-        require(!allBets[msg.sender].pending, "Bettor already has a pending bet.");
-        freeBalance -= msg.value;
-        totalBalance += msg.value;
-        allBets[msg.sender] = Bet(betType, msg.value, futureBlockNumber, true);
     }
 
     function realizeMyBet() external {
@@ -75,12 +73,14 @@ contract Roulette {
         myBet.pending = false;
     }
 
-    function withdraw(uint amount) external {
-        require(msg.sender == owner, "Caller is not the owner.");
-        require(amount <= freeBalance, "Not enough free balance to support the requested withdrawal.");
-        freeBalance -= amount;
-        totalBalance -= amount;
-        payable(msg.sender).transfer(amount);
+    function _betOnParity(uint futureBlockNumber, BetType betType) private {
+        require(msg.value > 0, "Must bet a positive amount");
+        require(msg.value < freeBalance, "Bank has insufficient funds to support this bet.");
+        require(futureBlockNumber > block.number, "Bet must be placed in the future.");
+        require(!allBets[msg.sender].pending, "Bettor already has a pending bet.");
+        freeBalance -= msg.value;
+        totalBalance += msg.value;
+        allBets[msg.sender] = Bet(betType, msg.value, futureBlockNumber, true);
     }
 
     function _unsafeRouletteSpin(uint blockNum) private view returns (uint8) {
