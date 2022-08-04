@@ -54,23 +54,22 @@ contract Roulette {
         require(myBet.pending, "No pending bet for bettor.");
         require(myBet.blockNum < block.number, "Target block number does not exist yet.");
 
-        uint8 spin = _unsafeRouletteSpin(myBet.blockNum) % 37;
-        bool win;
-        if (spin == 0) {
-            // Zero is on the house.
-            win = false;
-        } else {
-            win = (myBet.betType == BetType.Even) ? (spin % 2) == 0 : (spin % 2) == 1;
-        }
-
-        if (win) {
+        uint8 spin = _unsafeRouletteSpin(myBet.blockNum);
+        if (_decideParityWin(spin, myBet.betType)) {
             totalBalance -= 2 * myBet.amount;
             payable(msg.sender).transfer(2 * myBet.amount);
         } else {
             freeBalance += 2 * myBet.amount;
         }
-
         myBet.pending = false;
+    }
+
+    function _decideParityWin(uint8 spin, BetType betType) private pure returns (bool) {
+        if (spin == 0) {
+            return false;  // Zero is on the house.
+        } else {
+            return (betType == BetType.Even) ? (spin % 2) == 0 : (spin % 2) == 1;
+        }
     }
 
     function _betOnParity(uint futureBlockNumber, BetType betType) private {
