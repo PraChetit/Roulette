@@ -4,18 +4,57 @@ pragma solidity ^0.8.15;
 
 
 contract Roulette {
-    
+
+    enum BetType {
+        Black,
+        Red
+    }
+
+    struct Bet {
+        address bettor;
+        BetType betType;
+        uint amount;
+        uint blockNum;
+    }
+
     address payable public owner;
+    mapping(address => Bet[]) public unrealizedBets;
+    uint public totalBalance;
+    uint public freeBalance;
 
     constructor() payable {
         owner = payable(msg.sender);
+        totalBalance = msg.value;
+        freeBalance = msg.value;
     }
 
-    receive() external payable {}
+    receive() external payable {
+        totalBalance += msg.value;
+        freeBalance += msg.value;
+    }
 
-    function withdraw(uint _amount) external {
+    function betOnBlack(uint futureBlockNumber) external payable {
+        _betOnColor(futureBlockNumber, BetType.Black);
+    }
+
+    function betOnRed(uint futureBlockNumber) external payable {
+        _betOnColor(futureBlockNumber, BetType.Red);
+    }
+
+    function _betOnColor(uint futureBlockNumber, BetType betType) private {
+        require(msg.value > 0, "Must bet a positive amount");
+        require(msg.value < freeBalance, "Bank has insufficient funds to support this bet.");
+        require(futureBlockNumber > block.number, "Bet must be placed in the future.");
+        freeBalance -= msg.value;
+        totalBalance += msg.value;
+        Bet memory newBet = Bet(msg.sender, betType, msg.value, futureBlockNumber);
+        unrealizedBets[msg.sender].push(newBet);
+    }
+
+    function withdraw(uint amount) external {
         require(msg.sender == owner, "Caller is not the owner.");
-        payable(msg.sender).transfer(_amount);
+        require(amount <= freeBalance, "Not enough free balance to support the requested withdrawal.");
+        payable(msg.sender).transfer(amount);
     }
 
     function _unsafeRouletteSpin(uint blockNum) private view returns (uint8) {
